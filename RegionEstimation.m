@@ -1,24 +1,31 @@
 close all
 clear all
 
+
+
 %Основные настройки
-Bx = 5;
-By = 5;
+Bx = 8;
+By = 8;
 A = 2.5;
-M = 20;
-Ms = 160;     
-m = 7;
-L = 0.11; %L из статьи
+M = 12;
+Ms = 10;     
+m = 4;
+L = 0.15; %L из статьи
+
+Wvideo = VideoWriter('corrected2.avi','Uncompressed AVI');
+Wvideo.FrameRate = 30;
+open(Wvideo);
 
 %Доп настройки
 Mstep = 3;
 
-vid = VideoReader('Recap3.mp4');
+vid = VideoReader('TRecap3.mp4');
 %numFrames = vid.NumFrames;
 vidW = vid.Width;
 vidH = vid.Height;
 vid.CurrentTime = 0;
 video = read(vid);
+
 
 
 
@@ -32,7 +39,9 @@ figure;
 ax = axes;
 zoom(5);
 
-
+figure;
+ax2 = axes;
+zoom(5);
 
 %dFr = zeros(Ms+M-4,vidH,vidW);
 %for frame=Ms:(Ms+M-4)
@@ -43,8 +52,9 @@ zoom(5);
 
 %imshow(CanImg,'Parent',ax);
 
+profile on;
 
-for tries=1:21
+for tries=1:M
     
     CanImg = zeros(Byn,Bxn);
     dFrames = zeros(vidH,vidW,M-1);
@@ -92,7 +102,7 @@ for tries=1:21
         end 
 
         %imshow(CanImg,'Parent',ax);
-        %pause(0.01);
+        %pause(0.2);
     end
 
     for j=1:Byn
@@ -106,7 +116,7 @@ for tries=1:21
     end  
 
     %imshow(CanImg,'Parent',ax);
-    %pause(0.01);
+    %pause(0.2);
 
     CanImg2 = zeros(Byn,Bxn);
 
@@ -119,7 +129,7 @@ for tries=1:21
     end
 
     %imshow(CanImg2,'Parent',ax);
-    pause(0.01);
+    %pause(0.1);
 
     CanImg = CanImg2;
 
@@ -132,7 +142,7 @@ for tries=1:21
     end 
 
     %imshow(CanImg2,'Parent',ax);
-    pause(0.01);
+    %pause(0.1);
 
     CanImg = bwareafilt(logical(CanImg2),1,'largest',4);
 
@@ -422,22 +432,36 @@ for tries=1:21
         viscircles([Xur*Bx Yur*By] ,0.4,'Color','g');
         viscircles([Xul*Bx Yul*By] ,0.4,'Color','g');
         pause(0.01);
+        
+%       CanImg = uint8(imresize(CanImg, Bx)*255);
+        a = video(:,:,:,Ms+round(M/2));
+%       a = a(1:Byn*By,1:Bxn*Bx,:);
+%       a=0.2*CanImg + 0.8*a(:,:,:);
+        
+        fixedPoints = [0 0; 0 vidH; vidW vidH; vidW 0];
+        movingPoints = [Xul*Bx Yul*By; Xdl*Bx Ydl*By; Xdr*Bx Ydr*By; Xur*Bx Yur*By];
+        tform = fitgeotrans(movingPoints, fixedPoints, 'projective');
+        R=imref2d(size(a),[1 size(a,2)],[1 size(a,1)]);
+        b = imwarp(a, tform,'OutputView',R);
+        imshow(a,'Parent',ax2);      
+        imshow(b,'Parent',ax);      
+        writeVideo(Wvideo,b);
     end
     
     Ms=Ms+Mstep;
     
-    CanImg = uint8(imresize(CanImg, Bx)*255);
-    a = video(:,:,:,Ms+round(M/2));
-    a = a(1:Byn*By,1:Bxn*Bx,:);
-    a=0.2*CanImg + 0.8*a(:,:,:);
-    imshow(a,'Parent',ax);
+    
+    
+
     
 end
 %viscircles([2 2] ,0.2,'Color','g')
 
 
+close(Wvideo);
 
-
+profile off;
+profile viewer;
 
 %axis([0 Bxn 0 Byn])
 

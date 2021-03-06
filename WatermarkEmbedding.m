@@ -1,11 +1,17 @@
 close all
 clear all
 
-S = 3;%watermarking strength
+S = 1;%watermarking strength
 X = 6;
 Y = 6;
 data = [1,1,1,1,0,0,0,0,1,1,1,1,0,1,0,0];
+blur = 30;
+start = 1;
+length = 50;
+speed = 16;
 
+%для ускорения видео
+%length = length*speed;
 
 ConvCoding; %creates codedData
 
@@ -28,17 +34,19 @@ figure;
 imshow( squeeze(temp(35,:,:,:)) );
 %}
 
-%video opening
-%folder = fileparts(which('traffic.avi'));
-%movieFullFileName = fullfile(folder, 'traffic.avi');
-vid = VideoReader('nature.mp4');
+%%video opening
+%folder = fileparts(which('rhinos.avi'));
+%movieFullFileName = fullfile(folder, 'rhinos.avi');
+%vid = VideoReader(movieFullFileName);
+vid = VideoReader('view.mp4');
 numFrames = vid.NumFrames;
 
+%length = numFrames -1
 %video writing setup
 figure;
 ax = axes;
 vid.CurrentTime = 0;
-Wvideo = VideoWriter('rhinoceros.avi','Uncompressed AVI');
+Wvideo = VideoWriter('test.avi','Uncompressed AVI');
 Wvideo.FrameRate = 30;
 open(Wvideo);
 
@@ -72,12 +80,32 @@ nspat = (spat)*(-1);
 
 %frame = 1;
 
-for frame=1:(numFrames-1)
-    cFrame = im2uint8(read(vid,frame));
+peaksnrsum=0
+snrsum=0
+ssimsum=0
+
+mFrame = im2uint8(read(vid,start));
+
+brightness = 0;
+variance = 0;
+
+%sharpness = measureSharpness(esfrChart(read(vid,start)));
+%noise = measureNoise(esfrChart(read(vid,start)));
+
+
+%for frame=1:(numFrames-1)
+for frame=start:(start+length-1)
+    cFrame = im2uint8(read(vid,frame*speed));
+    %cFrame = uint8(zeros(vidH,vidW,3));
+    cFrame2 = im2uint8(read(vid,frame*speed));
     %nFrame = im2double(read(vid,frame+1));%это может замедлять работу
-    dFrame = int32(cFrame) - int32(im2uint8(read(vid,frame+1)));
+    dFrame = int32(cFrame) - int32(im2uint8(read(vid,frame*speed+1)));
     %size(temp)
     
+    mFrame = mFrame/2 + cFrame/2;
+    
+    brightness = brightness + mean(cFrame,'all');
+    variance = variance + var(double(cFrame),1,'all');
     
     for j=0:(Y-1)
        for i=0:(X-1)
@@ -100,22 +128,64 @@ for frame=1:(numFrames-1)
           
           
           %frame modification
+          %if(rem(round(frame/2),2)==0)
+          %   cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),3) = cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),3) + T*spat(j+1,i+1);
+          %else
+          %   cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),3) = cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),3) + T*nspat(j+1,i+1);
+          %end
+          
           if(rem(round(frame/2),2)==0)
-             cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),3) = cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),3) + T*spat(j+1,i+1);
+             cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),:) = T*spat(j+1,i+1);
           else
-             cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),3) = cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),3) + T*nspat(j+1,i+1);
+             cFrame((1+blH*j):(blH*(j+1)),(1+blW*i):(blW*(i+1)),:) = T*nspat(j+1,i+1);
           end
           
        end 
     end
     
-    
+    cFrame(:,blW*X:vidW,:)=0;
 
+
+    %sharpness = sharpness/2 + measureSharpness(esfrChart(cFrame))/2;
+    %noise = noise/2 + measureNoise(esfrChart(cFrame))/2;
     
-    imshow(cFrame,'Parent',ax);
-    writeVideo(Wvideo,cFrame);
+    %H = fspecial('disk', blur);
+    %cFrame = imfilter(cFrame,H,'replicate'); 
+    
+    cFrame = imgaussfilt(cFrame,blur);
+    
+    cFrame2(:,:,3) = cFrame2(:,:,3) + cFrame(:,:,3);
+    
+    [peaksnr, snr] = psnr(cFrame2,read(vid,frame*speed))
+    ssimsum = ssimsum + ssim(cFrame2,read(vid,frame*speed))
+    
+    peaksnrsum = peaksnrsum + peaksnr
+    snrsum = snrsum + snr
+    
+    imshow(cFrame2,'Parent',ax);
+    writeVideo(Wvideo,cFrame2);
     %pause(1/vid.FrameRate);
+    
+    %frame = frame + (stp - 1);
 end
+
+imshow(mFrame,'Parent',ax);
+imhist(mFrame)
+
+%mbrightness = mean2(mFrame)
+%mvariance = var(double(mFrame),1,'all')
+
+brightness = brightness/(length)
+variance = variance/(length)
+
+%sharpness
+%noise
+
+ssimres=ssimsum/(length)
+peaksnrRes=peaksnrsum/(length)
+snrRes=snrsum/(length)
+
+
 
 %{
 while vid.hasFrame()
@@ -141,4 +211,4 @@ end
 
 
 close(Wvideo);
-close all
+%close figure;

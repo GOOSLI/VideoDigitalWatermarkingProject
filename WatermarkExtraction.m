@@ -5,16 +5,16 @@ codedDataLength = 32;
 X = 6;
 Y = 6;
 
-M=50;
+M=45;
 Ms=1;
 
-vid = VideoReader('rhinoceros.avi');
+vid = VideoReader('test.avi');
 numFrames = vid.NumFrames;
 vid.CurrentTime = 0;
 video = read(vid);
 
-%figure;
-%ax = axes;
+figure;
+ax = axes;
 %ax2 = axes;
 %ax3 = axes;
 
@@ -38,10 +38,10 @@ for frame=Ms:(Ms+M-1)
     %nFrame = nFrame(:,:,3);
     dFr = int16(video(:,:,3,frame)) - int16(video(:,:,3,frame+1));
     means(frame) = mean(abs(dFr),'all');  
-    %imshow(uint8(dFr)*8,'Parent',ax);
+    imshow(uint8(dFr)*8,'Parent',ax);
     %imshow(cFrame,'Parent',ax2);
     %imshow(nFrame,'Parent',ax3);
-    %pause(0.1/vid.FrameRate);
+    pause(0.1/vid.FrameRate);
 end
 
 [means,I] = sort(means,'descend');
